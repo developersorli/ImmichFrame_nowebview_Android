@@ -19,7 +19,6 @@ import androidx.preference.SwitchPreferenceCompat
 class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_view, rootKey)
-        val chkUseWebView = findPreference<SwitchPreferenceCompat>("useWebView")
         val chkBlurredBackground = findPreference<SwitchPreferenceCompat>("blurredBackground")
         val chkShowCurrentDate = findPreference<SwitchPreferenceCompat>("showCurrentDate")
         val chkScreenDim = findPreference<SwitchPreferenceCompat>("screenDim")
@@ -33,20 +32,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         // Update visibility based on switches
-        val useWebView = chkUseWebView?.isChecked ?: false
-        chkBlurredBackground?.isVisible = !useWebView
-        chkShowCurrentDate?.isVisible = !useWebView
+        chkBlurredBackground?.isVisible = true
+        chkShowCurrentDate?.isVisible = true
         val screenDim = chkScreenDim?.isChecked ?: false
         txtDimTime?.isVisible = screenDim
 
-        // React to changes
-        chkUseWebView?.setOnPreferenceChangeListener { _, newValue ->
-            val value = newValue as Boolean
-            chkBlurredBackground?.isVisible = !value
-            chkShowCurrentDate?.isVisible = !value
-            //add android settings button
-            true
-        }
         chkScreenDim?.setOnPreferenceChangeListener { _, newValue ->
             val value = newValue as Boolean
             txtDimTime?.isVisible = value

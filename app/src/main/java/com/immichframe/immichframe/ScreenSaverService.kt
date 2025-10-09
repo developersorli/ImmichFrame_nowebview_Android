@@ -16,11 +16,6 @@ import android.text.style.RelativeSizeSpan
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -42,7 +37,6 @@ import androidx.core.net.toUri
 
 class ScreenSaverService : DreamService() {
     private var wakeLock: PowerManager.WakeLock? = null
-    private lateinit var webView: WebView
     private lateinit var imageView1: ImageView
     private lateinit var imageView2: ImageView
     private lateinit var txtPhotoInfo: TextView
@@ -51,7 +45,6 @@ class ScreenSaverService : DreamService() {
     private var retrofit: Retrofit? = null
     private lateinit var apiService: Helpers.ApiService
     private var isWeatherTimerRunning = false
-    private var useWebView = true
     private var blurredBackground = true
     private var showCurrentDate = true
     private var currentWeather = ""
@@ -86,18 +79,10 @@ class ScreenSaverService : DreamService() {
         isFullscreen = true
         isInteractive = true
         setContentView(R.layout.screen_saver_view)
-        webView = findViewById(R.id.webView)
-        webView.setBackgroundColor(Color.BLACK)
-        webView.loadUrl("about:blank")
         imageView1 = findViewById(R.id.imageView1)
         imageView2 = findViewById(R.id.imageView2)
         txtPhotoInfo = findViewById(R.id.txtPhotoInfo)
         txtDateTime = findViewById(R.id.txtDateTime)
-
-        webView.setOnTouchListener { _, _ ->
-            finish()
-            true
-        }
 
         acquireWakeLock()
         loadSettings()
@@ -131,32 +116,20 @@ class ScreenSaverService : DreamService() {
     }
 
     private fun previousAction() {
-        if (useWebView) {
-            // Simulate a key press
-            webView.requestFocus()
-            val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT)
-            webView.dispatchKeyEvent(event)
-        } else {
+
             val safePreviousImage = previousImage
             if (safePreviousImage != null) {
                 stopImageTimer()
                 showImage(safePreviousImage)
                 startImageTimer()
             }
-        }
     }
 
     private fun nextAction() {
-        if (useWebView) {
-            // Simulate a key press
-            webView.requestFocus()
-            val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT)
-            webView.dispatchKeyEvent(event)
-        } else {
             stopImageTimer()
             getNextImage()
             startImageTimer()
-        }
+
     }
 
     private fun showImage(imageResponse: Helpers.ImageResponse) {
@@ -458,68 +431,14 @@ class ScreenSaverService : DreamService() {
         blurredBackground = prefs.getBoolean("blurredBackground", true)
         showCurrentDate = prefs.getBoolean("showCurrentDate", true)
         var savedUrl = prefs.getString("webview_url", "") ?: ""
-        useWebView = prefs.getBoolean("useWebView", true)
         val authSecret = prefs.getString("authSecret", "") ?: ""
 
-        webView.visibility = if (useWebView) View.VISIBLE else View.GONE
-        imageView1.visibility = if (useWebView) View.GONE else View.VISIBLE
-        imageView2.visibility = if (useWebView) View.GONE else View.VISIBLE
+        imageView1.visibility = View.VISIBLE
+        imageView2.visibility = View.VISIBLE
         txtPhotoInfo.visibility = View.GONE //enabled in onSettingsLoaded based on server settings
         txtDateTime.visibility = View.GONE //enabled in onSettingsLoaded based on server settings
 
-        if (useWebView) {
-            savedUrl = if (authSecret.isNotEmpty()) {
-                savedUrl.toUri()
-                    .buildUpon()
-                    .appendQueryParameter("authsecret", authSecret)
-                    .build()
-                    .toString()
-            } else {
-                savedUrl
-            }
-            handler.removeCallbacks(imageRunnable)
-            handler.removeCallbacks(weatherRunnable)
-            webView.webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest?
-                ): Boolean {
-                    val url = request?.url
-                    if (url != null) {
-                        // Open the URL in the default browser
-                        val intent = Intent(Intent.ACTION_VIEW, url)
-                        startActivity(intent)
-                        return true
-                    }
-                    return false
-                }
 
-                override fun onReceivedError(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                    error: WebResourceError?
-                ) {
-                    super.onReceivedError(view, request, error)
-
-                    if (request?.isForMainFrame == true && error != null) {
-                        view?.loadUrl("file:///android_asset/error_page.html")
-
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            val errorCode = error.errorCode
-                            val errorDescription = error.description.toString().replace("'", "\\'")
-                            view?.evaluateJavascript("showError('$errorCode', '$errorDescription')", null)
-                        }, 500)
-                    }
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        webView.loadUrl(savedUrl)
-                    }, 5000)
-                }
-            }
-            webView.settings.javaScriptEnabled = true
-            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
-            webView.settings.domStorageEnabled = true
-            webView.loadUrl(savedUrl)
-        } else {
             retrofit = Helpers.createRetrofit(savedUrl, authSecret)
             apiService = retrofit!!.create(Helpers.ApiService::class.java)
             getServerSettings(
@@ -535,7 +454,7 @@ class ScreenSaverService : DreamService() {
                     ).show()
                 }
             )
-        }
+
     }
 
     private fun onSettingsLoaded() {

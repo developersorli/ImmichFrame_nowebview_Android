@@ -20,11 +20,6 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -49,7 +44,6 @@ import androidx.core.net.toUri
 import androidx.core.view.isVisible
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var webView: WebView
     private lateinit var imageView1: ImageView
     private lateinit var imageView2: ImageView
     private lateinit var txtPhotoInfo: TextView
@@ -64,7 +58,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var apiService: Helpers.ApiService
     private lateinit var rcpServer: RpcHttpServer
     private var isWeatherTimerRunning = false
-    private var useWebView = true
     private var keepScreenOn = true
     private var blurredBackground = true
     private var showCurrentDate = true
@@ -115,9 +108,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.main_view)
         hideSystemUI()
 
-        webView = findViewById(R.id.webView)
-        webView.setBackgroundColor(Color.BLACK)
-        webView.loadUrl("about:blank")
         imageView1 = findViewById(R.id.imageView1)
         imageView2 = findViewById(R.id.imageView2)
         txtPhotoInfo = findViewById(R.id.txtPhotoInfo)
@@ -439,9 +429,6 @@ class MainActivity : AppCompatActivity() {
         var retryCount = 0
 
         fun attemptFetch() {
-            if (useWebView) {
-                return
-            }
             apiService.getServerSettings().enqueue(object : Callback<Helpers.ServerSettings> {
                 override fun onResponse(
                     call: Call<Helpers.ServerSettings>,
@@ -464,9 +451,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 private fun handleFailure(t: Throwable) {
-                    if (useWebView) {
-                        return
-                    }
                     if (retryCount < maxRetries) {
                         retryCount++
                         Toast.makeText(
@@ -493,18 +477,16 @@ class MainActivity : AppCompatActivity() {
         blurredBackground = prefs.getBoolean("blurredBackground", true)
         showCurrentDate = prefs.getBoolean("showCurrentDate", true)
         var savedUrl = prefs.getString("webview_url", "") ?: ""
-        useWebView = prefs.getBoolean("useWebView", true)
         keepScreenOn = prefs.getBoolean("keepScreenOn", true)
         val authSecret = prefs.getString("authSecret", "") ?: ""
         val screenDim = prefs.getBoolean("screenDim", false)
         val settingsLock = prefs.getBoolean("settingsLock", false)
 
-        webView.visibility = if (useWebView) View.VISIBLE else View.GONE
-        imageView1.visibility = if (useWebView) View.GONE else View.VISIBLE
-        imageView2.visibility = if (useWebView) View.GONE else View.VISIBLE
-        btnPrevious.visibility = if (useWebView) View.GONE else View.VISIBLE
-        btnPause.visibility = if (useWebView) View.GONE else View.VISIBLE
-        btnNext.visibility = if (useWebView) View.GONE else View.VISIBLE
+        imageView1.visibility = View.VISIBLE
+        imageView2.visibility = View.VISIBLE
+        btnPrevious.visibility = View.VISIBLE
+        btnPause.visibility = View.VISIBLE
+        btnNext.visibility =  View.VISIBLE
         swipeRefreshLayout.isEnabled = !settingsLock
         txtPhotoInfo.visibility = View.GONE //enabled in onSettingsLoaded based on server settings
         txtDateTime.visibility = View.GONE //enabled in onSettingsLoaded based on server settings
@@ -523,73 +505,8 @@ class MainActivity : AppCompatActivity() {
             lp.screenBrightness = 1f
             window.attributes = lp
         }
-        if (useWebView) {
-            savedUrl = if (authSecret.isNotEmpty()) {
-                savedUrl.toUri()
-                    .buildUpon()
-                    .appendQueryParameter("authsecret", authSecret)
-                    .build()
-                    .toString()
-            } else {
-                savedUrl
-            }
-            handler.removeCallbacks(imageRunnable)
-            handler.removeCallbacks(weatherRunnable)
 
-            webView.webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest?
-                ): Boolean {
-                    val url = request?.url
-                    if (url != null) {
-                        // Open the URL in the default browser
-                        val intent = Intent(Intent.ACTION_VIEW, url)
-                        startActivity(intent)
-                        return true
-                    }
-                    return false
-                }
 
-                override fun onReceivedError(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                    error: WebResourceError?
-                ) {
-                    super.onReceivedError(view, request, error)
-
-                    if (request?.isForMainFrame == true && error != null) {
-                        view?.loadUrl("file:///android_asset/error_page.html")
-
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            val errorCode = error.errorCode
-                            val errorDescription = error.description.toString().replace("'", "\\'")
-                            view?.evaluateJavascript("showError('$errorCode', '$errorDescription')", null)
-                        }, 500)
-                    }
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        //check url again in case the user has changed it
-                        var currentUrl = prefs.getString("webview_url", "")?.trim() ?: ""
-                        currentUrl = if (authSecret.isNotEmpty()) {
-                            savedUrl.toUri()
-                                .buildUpon()
-                                .appendQueryParameter("authsecret", authSecret)
-                                .build()
-                                .toString()
-                        } else {
-                            currentUrl
-                        }
-                        if (currentUrl.isNotEmpty()) {
-                            webView.loadUrl(currentUrl)
-                        }
-                    }, 5000)
-                }
-            }
-            webView.settings.javaScriptEnabled = true
-            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
-            webView.settings.domStorageEnabled = true
-            webView.loadUrl(savedUrl)
-        } else {
             retrofit = Helpers.createRetrofit(savedUrl, authSecret)
             apiService = retrofit!!.create(Helpers.ApiService::class.java)
             getServerSettings(
@@ -605,7 +522,7 @@ class MainActivity : AppCompatActivity() {
                     ).show()
                 }
             )
-        }
+
     }
 
     private fun onSettingsLoaded() {
@@ -653,41 +570,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun previousAction() {
-        if (useWebView) {
-            // Simulate a key press
-            webView.requestFocus()
-            val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT)
-            dispatchKeyEvent(event)
-        } else {
             val safePreviousImage = previousImage
             if (safePreviousImage != null) {
                 stopImageTimer()
                 showImage(safePreviousImage)
                 startImageTimer()
             }
-        }
     }
 
     private fun nextAction() {
-        if (useWebView) {
-            // Simulate a key press
-            webView.requestFocus()
-            val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT)
-            dispatchKeyEvent(event)
-        } else {
             stopImageTimer()
             getNextImage()
             startImageTimer()
-        }
     }
 
     private fun pauseAction() {
-        if (useWebView) {
-            // Simulate a key press
-            webView.requestFocus()
-            val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SPACE)
-            dispatchKeyEvent(event)
-        } else {
             zoomAnimator?.cancel()
             if (isImageTimerRunning) {
                 stopImageTimer()
@@ -695,7 +592,6 @@ class MainActivity : AppCompatActivity() {
                 getNextImage()
                 startImageTimer()
             }
-        }
     }
 
     private fun settingsAction() {
@@ -723,24 +619,24 @@ class MainActivity : AppCompatActivity() {
                     return true
                 }
             }
-            if (!useWebView) {
-                when (event.keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        previousAction()
-                        return true
-                    }
 
-                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        nextAction()
-                        return true
-                    }
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    previousAction()
+                    return true
+                }
 
-                    KeyEvent.KEYCODE_SPACE -> {
-                        pauseAction()
-                        return true
-                    }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    nextAction()
+                    return true
+                }
+
+                KeyEvent.KEYCODE_SPACE -> {
+                    pauseAction()
+                    return true
                 }
             }
+
         }
         return super.dispatchKeyEvent(event)
     }
@@ -778,12 +674,8 @@ class MainActivity : AppCompatActivity() {
                 dimOverlay.apply {
                     visibility = View.VISIBLE
                     alpha = 0f
-                    if (useWebView) {
-                        webView.loadUrl("about:blank")
-                    } else {
                         stopImageTimer()
                         stopWeatherTimer()
-                    }
                     animate()
                         .alpha(0.99f)
                         .setDuration(500L)

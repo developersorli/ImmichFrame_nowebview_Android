@@ -29,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.immichframe.immichframe"
-        minSdk = 23
+        minSdk = 22
         targetSdk = 36
         versionCode = 47
         versionName = "1.0.47.0"
