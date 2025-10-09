@@ -1,4 +1,5 @@
 # About
 
-This is a clone of https://github.com/immichFrame/ImmichFrame_Android that uses a webview without a system module.
-This workaround is useful if your tablet has a broken webview component.
+This is a clone of https://github.com/immichFrame/ImmichFrame\_Android that does not use a webview component.
+This workaround is useful if your tablet has a broken webview component or classes.dex.
+
