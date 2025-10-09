@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+  <style name="MyTheme">
+  </style>
+
+  <style name="MyTheme.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <item name="android:windowActionBar">false</item>
+    <item name="android:windowFullscreen">true</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowLayoutInDisplayCutoutMode" tools:ignore="NewApi">shortEdges</item>
+  </style>
+  <style name="Theme.WidgetConfigDialog" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+    <item name="android:windowMinWidthMajor">75%</item>
+    <item name="android:windowMinWidthMinor">75%</item>
+  </style>
+</resources>
